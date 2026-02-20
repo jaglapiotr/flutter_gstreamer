@@ -19,8 +19,20 @@ apply_standard_settings(${BINARY_NAME})
 # Add preprocessor definitions for the application ID.
 add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile commands" FORCE)
+set(PKG_CONFIG_EXECUTABLE "/home/piotr/Tools/vcpkg/installed/x64-linux/tools/pkgconf/pkgconf")
+set(ENV{PKG_CONFIG_PATH} "/home/piotr/Tools/vcpkg/installed/x64-linux/lib/pkgconfig")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/piotr/Tools/vcpkg/installed/x64-linux/share/cmake")
+set(GSTREAMER_APIS app audio) 
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+# find_package(GStreamer REQUIRED COMPONENTS app audio)
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
+# target_link_libraries(${BINARY_NAME} PRIVATE GStreamer::GStreamer GStreamer::app GStreamer::audio)
+target_include_directories(${BINARY_NAME} PRIVATE ${GSTREAMER_INCLUDE_DIRS})
+target_link_libraries(${BINARY_NAME} PRIVATE ${GSTREAMER_LIBRARIES})
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")

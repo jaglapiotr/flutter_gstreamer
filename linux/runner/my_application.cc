@@ -1,18 +1,49 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <flutter_linux/fl_plugin_registrar.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
 
+#include <memory>
+#include "synthetic_video_source.h"
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlMethodChannel* texture_channel;
+  std::unique_ptr<SyntheticVideoSource> video_source;
+  FlView* view;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+static void texture_method_call_handler(FlMethodChannel* channel, FlMethodCall* method_call, gpointer user_data) {
+  _MyApplication* self = (_MyApplication*)user_data; 
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if(strcmp(fl_method_call_get_name(method_call), "createTexture") == 0) {
+
+    // FlEngine* engine = fl_view_get_engine(self->view);
+
+    FlPluginRegistrar* registrar = fl_plugin_registry_get_registrar_for_plugin(FL_PLUGIN_REGISTRY(self->view), "AppInternalTextureRegistrar");
+    FlTextureRegistrar* textureRegistrar = fl_plugin_registrar_get_texture_registrar(registrar);
+
+    self->video_source = std::make_unique<SyntheticVideoSource>(textureRegistrar);
+    std::cout << "KANAPKA tutaj jest w call handlerze" << std::endl;
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(
+      fl_value_new_int(self->video_source->texture_id())));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+
+  g_autoptr(GError) error = nullptr;
+  if(!fl_method_call_respond(method_call, response, &error)) {
+    g_warning("Failed to send response: %s", error->message);
+  }
+}
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
@@ -74,6 +105,15 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  // fl_plugin_registrar_get_texture_registrar(FL_PLUGIN_REGISTRAR(view));
+
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->view = view;
+  self->texture_channel = fl_method_channel_new(
+    fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+    "win_texture_poc", FL_METHOD_CODEC(codec));
+    fl_method_channel_set_method_call_handler(self->texture_channel, &texture_method_call_handler, self, nullptr);
+  // FlPluginRegistrar* registrar = fl_plugin_registry_get_registrar_for_plugin(FL_PLUGIN_REGISTRY(view), "AppInternalTextureRegistrar");
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -121,6 +161,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->texture_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
