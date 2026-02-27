@@ -26,7 +26,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/piotr/Tools/vcpkg/installed/x6
 set(GSTREAMER_APIS app audio) 
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 
+  gstreamer-app-1.0 gstreamer-audio-1.0 gstreamer-video-1.0)
+message(STATUS "KANAPKA GStreamer include dirs: ${GSTREAMER_INCLUDE_DIRS}")
+message(STATUS "KANAPKA GStreamer libraries: ${GSTREAMER_LIBRARIES}")
 # find_package(GStreamer REQUIRED COMPONENTS app audio)
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
