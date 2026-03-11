@@ -19,6 +19,11 @@ apply_standard_settings(${BINARY_NAME})
 # Add preprocessor definitions for the application ID.
 add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
+set(CMAKE_C_FLAGS_INIT "-fsanitize=address -fno-omit-frame-pointer -g")
+set(CMAKE_CXX_FLAGS_INIT "-fsanitize=address -fno-omit-frame-pointer -g")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-fsanitize=address")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "-fsanitize=address")
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile commands" FORCE)
 set(PKG_CONFIG_EXECUTABLE "/home/piotr/Tools/vcpkg/installed/x64-linux/tools/pkgconf/pkgconf")
 set(ENV{PKG_CONFIG_PATH} "/home/piotr/Tools/vcpkg/installed/x64-linux/lib/pkgconfig")

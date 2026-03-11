@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
   runApp(const MaterialApp(home: TextureTestScreen()));
@@ -29,12 +30,14 @@ class _TextureTestScreenState extends State<TextureTestScreen> {
 
       setState(() {
         _textureId = textureId;
+        print("!!! Received textureId repaint: $textureId");
       });
 
       print("!!! Received textureId: $textureId");
     } catch (e) {
       print("!!! Error: $e");
     }
+    
   }
 
   @override
@@ -45,7 +48,18 @@ class _TextureTestScreenState extends State<TextureTestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Windows Native Texture PoC")),
+      appBar: AppBar(
+        title: const Text("Windows Native Texture PoC"),
+        actions: [
+          IconButton(
+            iconSize: 60,
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              debugPrint('Button pressed');
+            },
+          ),
+        ],
+      ),
       body: Center(
         child: _textureId == null
             ? const CircularProgressIndicator()
