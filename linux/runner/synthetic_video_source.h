@@ -31,6 +31,7 @@ static SyntheticTexture* synthetic_texture_new() {
 static gboolean synthetic_texture_copy_pixels(FlPixelBufferTexture* texture, 
     const uint8_t** out_buffer, uint32_t* width, uint32_t* height, GError** error) {
     
+    std::cout << "KANAPKA copy pixels\n";
     auto synthetic_texture_private = (SyntheticTexturePrivate*) synthetic_texture_get_instance_private(MY_OPENGL_SYNTHETIC_TEXTURE(texture));
     *out_buffer = synthetic_texture_private->buffer;
     *width = synthetic_texture_private->video_width;
@@ -58,7 +59,7 @@ public:
         height_ = 720;
 
         std::string pipeline_str = 
-            "videotestsrc pattern=ball ! "
+            "videotestsrc ! "
             "video/x-raw,width=640,height=360,framerate=30/1 ! "
             "videoconvert ! "
             "video/x-raw,format=BGRA ! "
@@ -109,6 +110,10 @@ public:
         // return texture_id_;
     }
 
+    SyntheticTexture* syntheticTexture() const {
+        return synthetic_texture_;
+    }
+
 
 
 private:
@@ -129,9 +134,13 @@ private:
                 gst_video_info_from_caps(&info, sampleCaps);
                 gst_video_frame_map(&frame, &info, buffer, GST_MAP_READ);
 
-                self->synthetic_texture_private_->buffer = (uint8_t*)frame.data;
-                self->synthetic_texture_private_->video_width = info.width;
-                self->synthetic_texture_private_->video_height = info.height;
+                auto synthetic_texture_private = (SyntheticTexturePrivate*)synthetic_texture_get_instance_private(self->synthetic_texture_);
+                // self->synthetic_texture_private_->buffer = (uint8_t*)frame.data;
+                // self->synthetic_texture_private_->video_width = info.width;
+                // self->synthetic_texture_private_->video_height = info.height;
+                synthetic_texture_private->buffer = (uint8_t*)frame.data;
+                synthetic_texture_private->video_width = info.width;
+                synthetic_texture_private->video_height = info.height;
 
                 fl_texture_registrar_mark_texture_frame_available(self->registrar_, FL_TEXTURE(self->synthetic_texture_));
 

@@ -35,6 +35,8 @@ static void texture_method_call_handler(FlMethodChannel* channel, FlMethodCall* 
     std::cout << "KANAPKA tutaj jest w call handlerze" << std::endl;
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(
       fl_value_new_int(self->video_source->texture_id())));
+    // response = FL_METHOD_RESPONSE(fl_method_success_response_new(
+    //   fl_value_new_int( ((SyntheticTexturePrivate*)synthetic_texture_get_instance_private(self->video_source->syntheticTexture()))->texture_id )));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
