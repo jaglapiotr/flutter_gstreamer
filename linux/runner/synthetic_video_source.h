@@ -7,6 +7,10 @@
 
 #include <iostream>
 
+struct FrameData {
+    GstSample* sample;
+    GstMapInfo map;
+};
 
 struct _SyntheticTextureClass {
     FlPixelBufferTextureClass parent_class;
@@ -14,10 +18,19 @@ struct _SyntheticTextureClass {
 
 struct SyntheticTexturePrivate {
     int64_t texture_id = 0;
-    uint8_t* buffer = nullptr;
     int32_t video_width = 0;
     int32_t video_height = 0;
+    FrameData* last_processed_frame = nullptr;
+    FrameData* next_frame = nullptr;
 };
+
+static void CleanupFrame(FrameData* frame) {
+    if(frame) {
+        gst_buffer_unmap(gst_sample_get_buffer(frame->sample), &frame->map);
+        gst_sample_unref(frame->sample);
+        delete frame;
+    }
+}
 
 G_DECLARE_DERIVABLE_TYPE(SyntheticTexture, synthetic_texture, MY_OPENGL, 
     SYNTHETIC_TEXTURE, FlPixelBufferTexture)
@@ -30,12 +43,23 @@ static SyntheticTexture* synthetic_texture_new() {
 
 static gboolean synthetic_texture_copy_pixels(FlPixelBufferTexture* texture, 
     const uint8_t** out_buffer, uint32_t* width, uint32_t* height, GError** error) {
-    
-    std::cout << "KANAPKA copy pixels\n";
+
+
     auto synthetic_texture_private = (SyntheticTexturePrivate*) synthetic_texture_get_instance_private(MY_OPENGL_SYNTHETIC_TEXTURE(texture));
-    *out_buffer = synthetic_texture_private->buffer;
-    *width = synthetic_texture_private->video_width;
-    *height = synthetic_texture_private->video_height;
+    if(synthetic_texture_private->next_frame) {
+        if(synthetic_texture_private->last_processed_frame) {
+            CleanupFrame(synthetic_texture_private->last_processed_frame);
+        }
+        synthetic_texture_private->last_processed_frame = synthetic_texture_private->next_frame;
+        synthetic_texture_private->next_frame = nullptr;
+    }
+
+    *out_buffer = synthetic_texture_private->last_processed_frame->map.data;
+    // *width = synthetic_texture_private->video_width;
+    // *height = synthetic_texture_private->video_height;
+    *width = 640;
+    *height = 360;
+
     return TRUE;
 }
 
@@ -88,8 +112,6 @@ public:
         synthetic_texture_private_ = (SyntheticTexturePrivate*)synthetic_texture_get_instance_private(synthetic_texture_);
         synthetic_texture_private_->texture_id = reinterpret_cast<int64_t>(FL_TEXTURE(synthetic_texture_));
 
-        std::cout << "KANAPKA PIERWSZE texture id: " << ((SyntheticTexturePrivate*)synthetic_texture_get_instance_private(synthetic_texture_))->texture_id << std::endl;
-
         GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
         g_signal_connect(sink, "new-sample", G_CALLBACK(OnNewSample), this);
         gst_object_unref(sink);
@@ -102,12 +124,7 @@ public:
     }
 
     int64_t texture_id() const {
-        // std::cout << "KANAPKA texture id: " << synthetic_texture_private_->texture_id << std::endl;
-        // return synthetic_texture_private_->texture_id;
-        std::cout << "KANAPKA texture id: " << ((SyntheticTexturePrivate*)synthetic_texture_get_instance_private(synthetic_texture_))->texture_id << std::endl;
         return ((SyntheticTexturePrivate*)synthetic_texture_get_instance_private(synthetic_texture_))->texture_id;
-        // std::cout << "KANAPKA texture id: " << texture_id_ << std::endl;
-        // return texture_id_;
     }
 
     SyntheticTexture* syntheticTexture() const {
@@ -124,30 +141,32 @@ private:
 
         if(sample) {
             GstBuffer* buffer = gst_sample_get_buffer(sample);
+            auto* frame = new FrameData();
+            frame->sample = sample;
             if(buffer != NULL) {
-                GstMapInfo map;
-                gst_buffer_map(buffer, &map, GST_MAP_READ);
+                gst_buffer_map(buffer, &frame->map, GST_MAP_READ);
 
-                GstVideoFrame frame;
-                GstVideoInfo info;
-                GstCaps* sampleCaps = gst_sample_get_caps(sample);
-                gst_video_info_from_caps(&info, sampleCaps);
-                gst_video_frame_map(&frame, &info, buffer, GST_MAP_READ);
+                // GstVideoInfo info;
+                // GstCaps* sampleCaps = gst_sample_get_caps(sample);
+                // gst_video_info_from_caps(&info, sampleCaps);
 
                 auto synthetic_texture_private = (SyntheticTexturePrivate*)synthetic_texture_get_instance_private(self->synthetic_texture_);
-                // self->synthetic_texture_private_->buffer = (uint8_t*)frame.data;
-                // self->synthetic_texture_private_->video_width = info.width;
-                // self->synthetic_texture_private_->video_height = info.height;
-                synthetic_texture_private->buffer = (uint8_t*)frame.data;
-                synthetic_texture_private->video_width = info.width;
-                synthetic_texture_private->video_height = info.height;
-
+                // synthetic_texture_private->buffer = (uint8_t*)frame.data;
+                // synthetic_texture_private->video_width = info.width;
+                // synthetic_texture_private->video_height = info.height;
+                if(synthetic_texture_private->next_frame) {
+                    CleanupFrame(synthetic_texture_private->next_frame);
+                }
+                // synthetic_texture_private->video_width = info.width;
+                // synthetic_texture_private->video_height = info.height;
+                synthetic_texture_private->next_frame = frame;
                 fl_texture_registrar_mark_texture_frame_available(self->registrar_, FL_TEXTURE(self->synthetic_texture_));
 
-                gst_buffer_unmap(buffer, &map);
-                gst_video_frame_unmap(&frame);
+                // gst_caps_unref(sampleCaps);
+            } else {
+                delete frame;
+                gst_sample_unref(sample);
             }
-            gst_sample_unref(sample);
         }
 
         return GST_FLOW_OK;
