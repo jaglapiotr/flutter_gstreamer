@@ -112,12 +112,6 @@ public:
         return ((SyntheticTexturePrivate*)synthetic_texture_get_instance_private(synthetic_texture_))->texture_id;
     }
 
-    SyntheticTexture* syntheticTexture() const {
-        return synthetic_texture_;
-    }
-
-
-
 private:
 
     static GstFlowReturn OnNewSample(GstElement* sink, gpointer user_data) {
