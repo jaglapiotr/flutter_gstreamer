@@ -1,7 +1,15 @@
 #include <jni.h>
 #include <android/log.h>
+#include <android/native_window_jni.h>
 #include <gst/gst.h>
 
+#include "synthetic_video_source.h"
+
+// synthetic_video_source.h defines its own LOG_TAG/LOGI for its internal
+// logging (expanded at its own call sites above); override them here so this
+// translation unit logs under its own tag.
+#undef LOG_TAG
+#undef LOGI
 #define LOG_TAG "gstreamer_android_texture"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
@@ -33,6 +41,41 @@ Java_com_example_gstreamer_1demo_MainActivity_nativeLogGStreamerInit(
   LOGI("KANAPKA GStreamer initialized: %s (gst_is_initialized=%d)", version,
        gst_is_initialized());
   g_free(version);
+}
+
+// Creates a SyntheticVideoSource that renders a GStreamer videotestsrc test
+// pattern into the Surface backing a Flutter SurfaceTexture. Called from
+// MainActivity#createTexture. Returns an opaque handle (the heap pointer) that
+// must later be passed to nativeDestroyVideoSource.
+JNIEXPORT jlong JNICALL
+Java_com_example_gstreamer_1demo_MainActivity_nativeCreateVideoSource(
+    JNIEnv* env, jobject /* thiz */, jobject surface, jint width, jint height) {
+  ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
+  if (window == nullptr) {
+    LOGI("KANAPKA nativeCreateVideoSource: ANativeWindow_fromSurface failed");
+    return 0;
+  }
+
+  auto* source = new SyntheticVideoSource(window, width, height);
+  // SyntheticVideoSource acquires its own reference on the window in its
+  // constructor, so release the one ANativeWindow_fromSurface handed us.
+  ANativeWindow_release(window);
+
+  LOGI("KANAPKA nativeCreateVideoSource: started %dx%d test pipeline", width,
+       height);
+  return reinterpret_cast<jlong>(source);
+}
+
+// Tears down a SyntheticVideoSource previously created by
+// nativeCreateVideoSource. Called from MainActivity#onDestroy.
+JNIEXPORT void JNICALL
+Java_com_example_gstreamer_1demo_MainActivity_nativeDestroyVideoSource(
+    JNIEnv* /* env */, jobject /* thiz */, jlong handle) {
+  if (handle == 0) {
+    return;
+  }
+  delete reinterpret_cast<SyntheticVideoSource*>(handle);
+  LOGI("KANAPKA nativeDestroyVideoSource: stopped test pipeline");
 }
 
 }  // extern "C"

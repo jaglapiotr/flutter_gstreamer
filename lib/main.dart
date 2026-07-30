@@ -37,7 +37,6 @@ class _TextureTestScreenState extends State<TextureTestScreen> {
     } catch (e) {
       print("!!! Error: $e");
     }
-    
   }
 
   @override

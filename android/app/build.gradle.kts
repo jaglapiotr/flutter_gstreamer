@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -8,17 +10,35 @@ plugins {
 // Location of the unpacked universal GStreamer Android binaries. Shared by
 // the CMake build (for headers/link-time symbols) and by the jniLibs staging
 // task below (to physically bundle libgstreamer_android.so into the APK).
-val gstRoot: String = if (project.hasProperty("gstAndroidRoot")) {
-    project.property("gstAndroidRoot") as String
-} else {
-    System.getenv("GSTREAMER_ROOT_ANDROID")
-} ?: throw GradleException("GSTREAMER_ROOT_ANDROID must be set, or \"gstAndroidRoot\" must be defined in your gradle.properties in the top level directory of the unpacked universal GStreamer Android binaries")
+//
+// gstAndroidRoot is machine-specific, so it lives in android/local.properties.
+// Gradle does NOT expose local.properties keys as project properties
+// automatically (only AGP/Flutter read a few well-known keys like sdk.dir /
+// flutter.sdk), so the file is loaded explicitly here. Resolution order:
+//   1. -PgstAndroidRoot=... or gstAndroidRoot in gradle.properties
+//   2. gstAndroidRoot in android/local.properties
+//   3. GSTREAMER_ROOT_ANDROID environment variable
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
 
-// Maps Android's ABI folder naming (used by jniLibs/APK packaging) to
-// GStreamer's own per-arch folder naming under $GSTREAMER_ROOT_ANDROID.
+val gstRoot: String = (
+    (project.findProperty("gstAndroidRoot") as String?)
+        ?: localProperties.getProperty("gstAndroidRoot")
+        ?: System.getenv("GSTREAMER_ROOT_ANDROID")
+) ?: throw GradleException("GSTREAMER_ROOT_ANDROID must be set (environment variable), or \"gstAndroidRoot\" must be defined in android/local.properties (or passed via -PgstAndroidRoot), pointing to the top level directory of the unpacked universal GStreamer Android binaries")
+
+// Maps Android's ABI folder naming (used by jniLibs/APK packaging) to the
+// per-arch folder naming under $GSTREAMER_ROOT_ANDROID. The prebuilt
+// libgstreamer_android.so lives under folders named after the Android ABI
+// itself (e.g. $GSTREAMER_ROOT_ANDROID/arm64-v8a/lib), so this is an
+// identity mapping.
 val gstArchForAbi = mapOf(
-    "armeabi-v7a" to "armv7",
-    "arm64-v8a" to "arm64",
+    "armeabi-v7a" to "armeabi-v7a",
+    "arm64-v8a" to "arm64-v8a",
     "x86" to "x86",
     "x86_64" to "x86_64"
 )

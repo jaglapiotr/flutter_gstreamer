@@ -12,12 +12,14 @@ if(NOT DEFINED GSTREAMER_ROOT_ANDROID)
 endif()
 
 # Map the NDK's ANDROID_ABI (set automatically by the Android CMake
-# toolchain) to the GStreamer SDK's per-arch folder naming. Same mapping
-# Android.mk relies on via TARGET_ARCH_ABI.
+# toolchain) to the GStreamer SDK's per-arch folder naming. The prebuilt
+# libraries/headers live under folders named after the Android ABI itself
+# (e.g. $GSTREAMER_ROOT_ANDROID/arm64-v8a/lib), so this is an identity
+# mapping.
 if(ANDROID_ABI STREQUAL "armeabi-v7a")
-    set(GSTREAMER_ARCH "armv7")
+    set(GSTREAMER_ARCH "armeabi-v7a")
 elseif(ANDROID_ABI STREQUAL "arm64-v8a")
-    set(GSTREAMER_ARCH "arm64")
+    set(GSTREAMER_ARCH "arm64-v8a")
 elseif(ANDROID_ABI STREQUAL "x86")
     set(GSTREAMER_ARCH "x86")
 elseif(ANDROID_ABI STREQUAL "x86_64")
