@@ -69,13 +69,43 @@ endif()
 message(STATUS "KANAPKA Using GStreamer.xcframework slice: ${_gst_slice_dir}")
 
 set(GSTREAMER_FRAMEWORK_DIR "${_gst_slice_dir}")
-set(GSTREAMER_FRAMEWORK "${_gst_slice_dir}/${GSTREAMER_FRAMEWORK_NAME}.framework")
 
-if(NOT IS_DIRECTORY "${GSTREAMER_FRAMEWORK}")
+# The slice's bundle name doesn't always match the xcframework's own name, so
+# don't assume "${GSTREAMER_FRAMEWORK_NAME}.framework" exists - look for
+# whatever *.framework is actually there and use it (falling back to a
+# directory listing in the error message so a real layout mismatch is easy to
+# diagnose without guessing blind).
+file(GLOB _gst_framework_candidates LIST_DIRECTORIES true "${_gst_slice_dir}/*.framework")
+set(GSTREAMER_FRAMEWORK "")
+foreach(_candidate ${_gst_framework_candidates})
+    get_filename_component(_candidate_name "${_candidate}" NAME_WE)
+    if(_candidate_name STREQUAL "${GSTREAMER_FRAMEWORK_NAME}")
+        set(GSTREAMER_FRAMEWORK "${_candidate}")
+        break()
+    endif()
+endforeach()
+if(GSTREAMER_FRAMEWORK STREQUAL "" AND _gst_framework_candidates)
+    list(GET _gst_framework_candidates 0 GSTREAMER_FRAMEWORK)
+    get_filename_component(GSTREAMER_FRAMEWORK_NAME "${GSTREAMER_FRAMEWORK}" NAME_WE)
+    message(STATUS "KANAPKA No .framework named '${GSTREAMER_FRAMEWORK_NAME}.framework' requested; "
+        "using the one actually found instead: ${GSTREAMER_FRAMEWORK}")
+endif()
+
+if(GSTREAMER_FRAMEWORK STREQUAL "")
+    file(GLOB _gst_slice_contents LIST_DIRECTORIES true "${_gst_slice_dir}/*")
     message(FATAL_ERROR
-        "KANAPKA ${GSTREAMER_FRAMEWORK_NAME}.framework not found inside slice "
-        "'${_gst_slice_dir}'. Set -DGSTREAMER_FRAMEWORK_NAME=... if your bundle "
-        "has a different name.")
+        "KANAPKA No .framework bundle found inside slice '${_gst_slice_dir}'. "
+        "This xcframework slice may be library-style (plain headers/.a, no "
+        ".framework wrapper) rather than framework-style - actual contents: "
+        "${_gst_slice_contents}")
+endif()
+message(STATUS "KANAPKA Resolved GStreamer framework bundle: ${GSTREAMER_FRAMEWORK}")
+
+if(NOT IS_DIRECTORY "${GSTREAMER_FRAMEWORK}/Headers")
+    file(GLOB _gst_framework_contents LIST_DIRECTORIES true "${GSTREAMER_FRAMEWORK}/*")
+    message(FATAL_ERROR
+        "KANAPKA '${GSTREAMER_FRAMEWORK}' has no Headers directory - actual "
+        "contents: ${_gst_framework_contents}")
 endif()
 
 # Expose the resolved framework's Headers + the framework bundle itself at
