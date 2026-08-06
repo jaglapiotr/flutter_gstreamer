@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.22)
 project(gstreamer_ios_texture)
 
 # ---------------------------------------------------------------------------
@@ -20,6 +20,8 @@ endif()
 # TODO: map CMAKE_OSX_ARCHITECTURES / CMAKE_OSX_SYSROOT to the GStreamer iOS
 # SDK's per-arch/per-platform folder naming (device vs simulator, arm64/x86_64).
 set(GSTREAMER_ROOT "${GSTREAMER_ROOT_IOS}")
+message(STATUS "KANAPKA CMAKE_OSX_ARCHITECTURES = ${CMAKE_OSX_ARCHITECTURES}")
+message(STATUS "KANAPKA CMAKE_OSX_SYSROOT = ${CMAKE_OSX_SYSROOT}")
 
 # TODO: fill in once GSTREAMER_ROOT_IOS layout is known.
 # include_directories(
@@ -35,13 +37,26 @@ add_library(gstreamer_ios_texture STATIC
 
 target_compile_features(gstreamer_ios_texture PRIVATE cxx_std_17)
 
-find_library(corevideo-lib CoreVideo)
-find_library(corefoundation-lib CoreFoundation)
 
 target_link_libraries(gstreamer_ios_texture
     # TODO: link the GStreamer static/dynamic libs from GSTREAMER_ROOT_IOS here
     # (e.g. gstreamer-1.0, glib-2.0, gobject-2.0, gst-app, plus the required
     # system frameworks/tbds per the GStreamer iOS SDK docs).
-    ${corevideo-lib}
-    ${corefoundation-lib}
+    "$ENV{HOME}/Tools/gstreamer/GStreamer.xcframework"
 )
+
+# ---------------------------------------------------------------------------
+# Debug: print what actually ended up attached to the target, so a wrong
+# GSTREAMER_ROOT_IOS / xcframework path is easy to spot in the configure log.
+# ---------------------------------------------------------------------------
+get_target_property(_gst_include_dirs gstreamer_ios_texture INCLUDE_DIRECTORIES)
+message(STATUS "KANAPKA gstreamer_ios_texture include directories: ${_gst_include_dirs}")
+
+get_target_property(_gst_link_libs gstreamer_ios_texture LINK_LIBRARIES)
+message(STATUS "KANAPKA gstreamer_ios_texture link libraries: ${_gst_link_libs}")
+
+if(EXISTS "$ENV{HOME}/Tools/gstreamer/GStreamer.xcframework")
+    message(STATUS "KANAPKA GStreamer.xcframework found at $ENV{HOME}/Tools/gstreamer/GStreamer.xcframework")
+else()
+    message(WARNING "KANAPKA GStreamer.xcframework NOT found at $ENV{HOME}/Tools/gstreamer/GStreamer.xcframework")
+endif()
