@@ -15,7 +15,6 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		FACEFEED0000000000000005 /* GStreamerVideoTexture.mm in Sources */ = {isa = PBXBuildFile; fileRef = FACEFEED0000000000000002 /* GStreamerVideoTexture.mm */; };
-		FACEFEED0000000000000006 /* synthetic_video_source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FACEFEED0000000000000004 /* synthetic_video_source.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -156,6 +155,7 @@
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
 				9740EEB61CF901F6004384FC /* Run Script */,
+				FACEFEED0000000000000007 /* Build GStreamer CMake Library */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
@@ -263,6 +263,21 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
+		FACEFEED0000000000000007 /* Build GStreamer CMake Library */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build GStreamer CMake Library";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nGST_ROOT=\"${GSTREAMER_ROOT_IOS:-$HOME/Tools/gstreamer}\"\nCMAKE_BUILD_DIR=\"${BUILT_PRODUCTS_DIR}/gstreamer_ios_texture_build\"\necho \"KANAPKA Building GStreamer CMake library (gstreamer_ios_texture)\"\necho \"KANAPKA GST_ROOT=${GST_ROOT}\"\nmkdir -p \"${CMAKE_BUILD_DIR}\"\ncmake -S \"${SRCROOT}/Runner\" -B \"${CMAKE_BUILD_DIR}\" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=\"${SDKROOT}\" -DCMAKE_OSX_ARCHITECTURES=\"${ARCHS}\" -DCMAKE_OSX_DEPLOYMENT_TARGET=\"${IPHONEOS_DEPLOYMENT_TARGET}\" -DGSTREAMER_ROOT_IOS=\"${GST_ROOT}\"\ncmake --build \"${CMAKE_BUILD_DIR}\" --config \"${CONFIGURATION}\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -281,7 +296,6 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				FACEFEED0000000000000005 /* GStreamerVideoTexture.mm in Sources */,
-				FACEFEED0000000000000006 /* synthetic_video_source.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -376,6 +390,14 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lgstreamer_ios_texture",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -555,6 +577,15 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				// Static lib produced by the "Build GStreamer CMake Library" script phase (see ios/Runner/CMakeLists.txt).
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lgstreamer_ios_texture",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -577,6 +608,14 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lgstreamer_ios_texture",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
