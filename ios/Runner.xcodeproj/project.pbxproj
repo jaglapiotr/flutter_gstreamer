@@ -275,6 +275,7 @@
 			);
 			name = "Build GStreamer CMake Library";
 			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/libgstreamer_ios_texture.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
