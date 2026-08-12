@@ -17,10 +17,16 @@
 // The iOS GStreamer SDK is built fully static with no dynamic plugin loading,
 // so every plugin our pipeline needs must be registered explicitly before
 // gst_parse_launch runs (otherwise you get "no element <name>" errors).
+//
+// The vendored libGStreamer.a exports these as plain C symbols (confirmed via
+// `nm`); GST_PLUGIN_STATIC_DECLARE's expansion isn't C++-linkage-safe on its
+// own, so wrap it in extern "C" here to avoid a C++ name-mangling mismatch.
+extern "C" {
 GST_PLUGIN_STATIC_DECLARE(coreelements);
 GST_PLUGIN_STATIC_DECLARE(videotestsrc);
 GST_PLUGIN_STATIC_DECLARE(videoconvertscale);
 GST_PLUGIN_STATIC_DECLARE(app);
+}
 
 SyntheticVideoSource::SyntheticVideoSource(int width, int height,
                                             std::function<void()> on_frame_available)
