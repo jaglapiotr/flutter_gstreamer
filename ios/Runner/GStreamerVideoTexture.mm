@@ -22,6 +22,7 @@
 
   _registry = registry;
   _textureId = [registry registerTexture:self];
+  NSLog(@"KANAPKA GStreamerVideoTexture: registered textureId=%lld, size=%dx%d", _textureId, width, height);
 
   // Called from the GStreamer streaming thread, not the main thread.
   __weak GStreamerVideoTexture* weakSelf = self;
@@ -47,7 +48,13 @@
 #pragma mark - FlutterTexture
 
 - (CVPixelBufferRef)copyPixelBuffer {
-  return _source ? _source->CopyLatestPixelBuffer() : NULL;
+  CVPixelBufferRef buffer = _source ? _source->CopyLatestPixelBuffer() : NULL;
+  static int callCount = 0;
+  int count = ++callCount;
+  if (count <= 5 || count % 60 == 0) {
+    NSLog(@"KANAPKA GStreamerVideoTexture: copyPixelBuffer call #%d, buffer=%p", count, (void*)buffer);
+  }
+  return buffer;
 }
 
 @end

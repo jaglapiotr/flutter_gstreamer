@@ -3,8 +3,10 @@
 #include <CoreVideo/CVPixelBuffer.h>
 #include <gst/gst.h>
 
+#include <atomic>
 #include <functional>
 #include <mutex>
+#include <thread>
 
 // Mirrors the Android (synthetic_video_source.h) / Windows (synthetic_video_surface.h) /
 // Linux (synthetic_video_source.h) implementations: a videotestsrc pipeline is decoded to
@@ -27,6 +29,9 @@ class SyntheticVideoSource {
  private:
   static GstFlowReturn OnNewSample(GstElement* sink, gpointer user_data);
   void CopyFrameToPixelBuffer(const uint8_t* src, size_t src_size);
+  // Polls the pipeline's GstBus and logs ERROR/WARNING/EOS/STATE_CHANGED messages,
+  // since we don't run a GMainLoop that would otherwise dispatch them.
+  void BusLoop();
 
   GstElement* pipeline_ = nullptr;
   int width_ = 0;
@@ -34,4 +39,7 @@ class SyntheticVideoSource {
   std::function<void()> on_frame_available_;
   std::mutex mutex_;
   CVPixelBufferRef latest_pixel_buffer_ = nullptr;
+  std::atomic<int> frame_count_{0};
+  std::atomic<bool> bus_thread_running_{false};
+  std::thread bus_thread_;
 };
