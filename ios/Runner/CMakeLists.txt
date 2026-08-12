@@ -16,9 +16,6 @@ if(NOT DEFINED GSTREAMER_ROOT_IOS)
         "GSTREAMER_ROOT_IOS must be passed via -DGSTREAMER_ROOT_IOS=...")
 endif()
 
-message(STATUS "KANAPKA CMAKE_OSX_ARCHITECTURES = ${CMAKE_OSX_ARCHITECTURES}")
-message(STATUS "KANAPKA CMAKE_OSX_SYSROOT = ${CMAKE_OSX_SYSROOT}")
-
 set(GSTREAMER_FRAMEWORK_NAME "GStreamer" CACHE STRING
     "Name of the .framework bundled inside GStreamer.xcframework's slices")
 
@@ -180,12 +177,3 @@ endif()
 # GSTREAMER_ROOT_IOS / xcframework layout is easy to spot in the build log.
 # ---------------------------------------------------------------------------
 get_target_property(_gst_include_dirs gstreamer_ios_texture INCLUDE_DIRECTORIES)
-message(STATUS "KANAPKA gstreamer_ios_texture include directories: ${_gst_include_dirs}")
-
-message(STATUS "KANAPKA gstreamer_ios_texture link style: ${GSTREAMER_LINK_STYLE}")
-message(STATUS "KANAPKA gstreamer_ios_texture headers symlink: ${CMAKE_BINARY_DIR}/gstreamer_headers -> ${GSTREAMER_HEADERS_DIR}")
-if(GSTREAMER_LINK_STYLE STREQUAL "FRAMEWORK")
-    message(STATUS "KANAPKA gstreamer_ios_texture framework symlink: ${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework -> ${GSTREAMER_FRAMEWORK}")
-else()
-    message(STATUS "KANAPKA gstreamer_ios_texture library symlink: ${CMAKE_BINARY_DIR}/${_gst_lib_filename} -> ${GSTREAMER_LIBRARY_FILE}")
-endif()
