@@ -2,6 +2,7 @@
 
 #include <gst/app/gstappsink.h>
 
+#include <CoreFoundation/CoreFoundation.h>
 #include <os/log.h>
 
 #include <cstdio>
@@ -193,9 +194,25 @@ void SyntheticVideoSource::BusLoop() {
 }
 
 void SyntheticVideoSource::CopyFrameToPixelBuffer(const uint8_t* src, size_t src_size) {
+  // Flutter's iOS engine wraps this buffer as a Metal texture, which requires it to be
+  // IOSurface-backed - passing nullptr attributes (the default) produces a buffer Metal
+  // can't import, so copyPixelBuffer would keep "succeeding" while nothing ever renders.
+  static CFDictionaryRef pixel_buffer_attributes = []() -> CFDictionaryRef {
+    CFDictionaryRef io_surface_props = CFDictionaryCreate(
+        kCFAllocatorDefault, nullptr, nullptr, 0,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    const void* keys[] = {kCVPixelBufferIOSurfacePropertiesKey, kCVPixelBufferMetalCompatibilityKey};
+    const void* values[] = {io_surface_props, kCFBooleanTrue};
+    CFDictionaryRef attrs = CFDictionaryCreate(
+        kCFAllocatorDefault, keys, values, 2,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFRelease(io_surface_props);
+    return attrs;
+  }();
+
   CVPixelBufferRef pixel_buffer = nullptr;
   CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, width_, height_,
-                                         kCVPixelFormatType_32BGRA, nullptr, &pixel_buffer);
+                                         kCVPixelFormatType_32BGRA, pixel_buffer_attributes, &pixel_buffer);
   if (status != kCVReturnSuccess || pixel_buffer == nullptr) {
     os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: CVPixelBufferCreate failed, status=%d", (int)status);
     return;
