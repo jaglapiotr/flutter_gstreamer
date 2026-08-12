@@ -60,6 +60,7 @@
 		FACEFEED0000000000000002 /* GStreamerVideoTexture.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = GStreamerVideoTexture.mm; sourceTree = "<group>"; };
 		FACEFEED0000000000000003 /* synthetic_video_source.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = synthetic_video_source.h; sourceTree = "<group>"; };
 		FACEFEED0000000000000004 /* synthetic_video_source.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = synthetic_video_source.cpp; sourceTree = "<group>"; };
+		FACEFEED0000000000000008 /* pipe2_compat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = pipe2_compat.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +127,7 @@
 				FACEFEED0000000000000002 /* GStreamerVideoTexture.mm */,
 				FACEFEED0000000000000003 /* synthetic_video_source.h */,
 				FACEFEED0000000000000004 /* synthetic_video_source.cpp */,
+				FACEFEED0000000000000008 /* pipe2_compat.c */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -401,7 +403,7 @@
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"-lgstreamer_ios_texture",
+					"-Wl,-force_load,$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/libgstreamer_ios_texture.a",
 					"-lGStreamer",
 					"-liconv",
 				);
@@ -596,7 +598,7 @@
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"-lgstreamer_ios_texture",
+					"-Wl,-force_load,$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/libgstreamer_ios_texture.a",
 					"-lGStreamer",
 					"-liconv",
 				);
@@ -633,7 +635,7 @@
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"-lgstreamer_ios_texture",
+					"-Wl,-force_load,$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/libgstreamer_ios_texture.a",
 					"-lGStreamer",
 					"-liconv",
 				);

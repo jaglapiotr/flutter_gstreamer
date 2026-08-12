@@ -143,6 +143,7 @@ endif()
 
 add_library(gstreamer_ios_texture STATIC
     synthetic_video_source.cpp
+    pipe2_compat.c
 )
 
 target_compile_features(gstreamer_ios_texture PRIVATE cxx_std_17)
