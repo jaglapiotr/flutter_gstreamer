@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <string>
 
 // GStreamer linking (headers/libs, framework search paths, static plugin
@@ -13,12 +14,30 @@
 // placeholder in this directory. This file assumes <gst/gst.h> and the appsink
 // headers already resolve once that linking is in place.
 
+// The iOS GStreamer SDK is built fully static with no dynamic plugin loading,
+// so every plugin our pipeline needs must be registered explicitly before
+// gst_parse_launch runs (otherwise you get "no element <name>" errors).
+GST_PLUGIN_STATIC_DECLARE(coreelements);
+GST_PLUGIN_STATIC_DECLARE(videotestsrc);
+GST_PLUGIN_STATIC_DECLARE(videoconvertscale);
+GST_PLUGIN_STATIC_DECLARE(app);
+
 SyntheticVideoSource::SyntheticVideoSource(int width, int height,
                                             std::function<void()> on_frame_available)
     : width_(width), height_(height), on_frame_available_(std::move(on_frame_available)) {
   if (!gst_is_initialized()) {
     gst_init(nullptr, nullptr);
   }
+
+  static std::once_flag static_plugins_once;
+  std::call_once(static_plugins_once, []() {
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: GStreamer version: %{public}s", gst_version_string());
+    GST_PLUGIN_STATIC_REGISTER(coreelements);
+    GST_PLUGIN_STATIC_REGISTER(videotestsrc);
+    GST_PLUGIN_STATIC_REGISTER(videoconvertscale);
+    GST_PLUGIN_STATIC_REGISTER(app);
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: static plugins registered");
+  });
 
   std::string pipeline_str =
       "videotestsrc ! "
