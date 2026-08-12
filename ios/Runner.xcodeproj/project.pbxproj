@@ -403,6 +403,7 @@
 					"$(inherited)",
 					"-lgstreamer_ios_texture",
 					"-lGStreamer",
+					"-liconv",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -597,6 +598,7 @@
 					"$(inherited)",
 					"-lgstreamer_ios_texture",
 					"-lGStreamer",
+					"-liconv",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -633,6 +635,7 @@
 					"$(inherited)",
 					"-lgstreamer_ios_texture",
 					"-lGStreamer",
+					"-liconv",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
