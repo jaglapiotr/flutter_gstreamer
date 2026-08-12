@@ -68,13 +68,10 @@ if(_gst_slice_dir STREQUAL "")
 endif()
 message(STATUS "KANAPKA Using GStreamer.xcframework slice: ${_gst_slice_dir}")
 
-set(GSTREAMER_FRAMEWORK_DIR "${_gst_slice_dir}")
-
-# The slice's bundle name doesn't always match the xcframework's own name, so
-# don't assume "${GSTREAMER_FRAMEWORK_NAME}.framework" exists - look for
-# whatever *.framework is actually there and use it (falling back to a
-# directory listing in the error message so a real layout mismatch is easy to
-# diagnose without guessing blind).
+# GStreamer's iOS xcframework has shipped both as framework-style (a
+# *.framework bundle inside the slice) and library-style (Headers/ + a plain
+# lib*.a / lib*.dylib directly in the slice) - detect whichever is actually
+# there instead of assuming one.
 file(GLOB _gst_framework_candidates LIST_DIRECTORIES true "${_gst_slice_dir}/*.framework")
 set(GSTREAMER_FRAMEWORK "")
 foreach(_candidate ${_gst_framework_candidates})
@@ -87,38 +84,62 @@ endforeach()
 if(GSTREAMER_FRAMEWORK STREQUAL "" AND _gst_framework_candidates)
     list(GET _gst_framework_candidates 0 GSTREAMER_FRAMEWORK)
     get_filename_component(GSTREAMER_FRAMEWORK_NAME "${GSTREAMER_FRAMEWORK}" NAME_WE)
-    message(STATUS "KANAPKA No .framework named '${GSTREAMER_FRAMEWORK_NAME}.framework' requested; "
-        "using the one actually found instead: ${GSTREAMER_FRAMEWORK}")
 endif()
 
-if(GSTREAMER_FRAMEWORK STREQUAL "")
+set(GSTREAMER_LINK_STYLE "")
+set(GSTREAMER_HEADERS_DIR "")
+set(GSTREAMER_LIBRARY_FILE "")
+set(GSTREAMER_LIBRARY_NAME "")
+
+if(NOT GSTREAMER_FRAMEWORK STREQUAL "")
+    set(GSTREAMER_LINK_STYLE "FRAMEWORK")
+    set(GSTREAMER_HEADERS_DIR "${GSTREAMER_FRAMEWORK}/Headers")
+    message(STATUS "KANAPKA Resolved GStreamer framework bundle: ${GSTREAMER_FRAMEWORK}")
+elseif(IS_DIRECTORY "${_gst_slice_dir}/Headers")
+    file(GLOB _gst_lib_candidates "${_gst_slice_dir}/*.a" "${_gst_slice_dir}/*.dylib")
+    if(_gst_lib_candidates)
+        list(GET _gst_lib_candidates 0 GSTREAMER_LIBRARY_FILE)
+        set(GSTREAMER_LINK_STYLE "LIBRARY")
+        set(GSTREAMER_HEADERS_DIR "${_gst_slice_dir}/Headers")
+        get_filename_component(GSTREAMER_LIBRARY_NAME "${GSTREAMER_LIBRARY_FILE}" NAME_WE)
+        string(REGEX REPLACE "^lib" "" GSTREAMER_LIBRARY_NAME "${GSTREAMER_LIBRARY_NAME}")
+        message(STATUS "KANAPKA Resolved GStreamer static library: ${GSTREAMER_LIBRARY_FILE} (link as -l${GSTREAMER_LIBRARY_NAME})")
+    endif()
+endif()
+
+if(GSTREAMER_LINK_STYLE STREQUAL "")
     file(GLOB _gst_slice_contents LIST_DIRECTORIES true "${_gst_slice_dir}/*")
     message(FATAL_ERROR
-        "KANAPKA No .framework bundle found inside slice '${_gst_slice_dir}'. "
-        "This xcframework slice may be library-style (plain headers/.a, no "
-        ".framework wrapper) rather than framework-style - actual contents: "
-        "${_gst_slice_contents}")
+        "KANAPKA Could not recognize the layout of slice '${_gst_slice_dir}' "
+        "(expected either a *.framework bundle, or a Headers/ dir next to a "
+        "lib*.a / lib*.dylib) - actual contents: ${_gst_slice_contents}")
 endif()
-message(STATUS "KANAPKA Resolved GStreamer framework bundle: ${GSTREAMER_FRAMEWORK}")
 
-if(NOT IS_DIRECTORY "${GSTREAMER_FRAMEWORK}/Headers")
-    file(GLOB _gst_framework_contents LIST_DIRECTORIES true "${GSTREAMER_FRAMEWORK}/*")
+if(NOT IS_DIRECTORY "${GSTREAMER_HEADERS_DIR}")
+    file(GLOB _gst_headers_parent_contents LIST_DIRECTORIES true "${_gst_slice_dir}/*")
     message(FATAL_ERROR
-        "KANAPKA '${GSTREAMER_FRAMEWORK}' has no Headers directory - actual "
-        "contents: ${_gst_framework_contents}")
+        "KANAPKA Resolved headers dir does not exist: '${GSTREAMER_HEADERS_DIR}' "
+        "- slice contents: ${_gst_headers_parent_contents}")
 endif()
 
-# Expose the resolved framework's Headers + the framework bundle itself at
-# FIXED, predictable paths under the build dir (which Xcode already sees via
-# LIBRARY_SEARCH_PATHS as $(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build),
-# so project.pbxproj's HEADER_SEARCH_PATHS/FRAMEWORK_SEARCH_PATHS don't need to
-# hardcode per-slice folder names - CMake re-resolves the right slice every
-# build (simulator vs device) and re-links these symlinks accordingly.
+# Expose the resolved headers + library/framework at FIXED, predictable names
+# under the build dir (Xcode sees $(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build
+# via HEADER_SEARCH_PATHS/LIBRARY_SEARCH_PATHS/FRAMEWORK_SEARCH_PATHS in
+# project.pbxproj), so project.pbxproj doesn't need to hardcode per-slice
+# folder names or care which style the SDK ships as - CMake re-resolves the
+# right slice/style every build (simulator vs device don't collide since each
+# gets its own BUILT_PRODUCTS_DIR).
 file(REMOVE "${CMAKE_BINARY_DIR}/gstreamer_headers")
-file(CREATE_LINK "${GSTREAMER_FRAMEWORK}/Headers" "${CMAKE_BINARY_DIR}/gstreamer_headers" SYMBOLIC)
+file(CREATE_LINK "${GSTREAMER_HEADERS_DIR}" "${CMAKE_BINARY_DIR}/gstreamer_headers" SYMBOLIC)
 
-file(REMOVE "${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework")
-file(CREATE_LINK "${GSTREAMER_FRAMEWORK}" "${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework" SYMBOLIC)
+if(GSTREAMER_LINK_STYLE STREQUAL "FRAMEWORK")
+    file(REMOVE "${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework")
+    file(CREATE_LINK "${GSTREAMER_FRAMEWORK}" "${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework" SYMBOLIC)
+else()
+    get_filename_component(_gst_lib_filename "${GSTREAMER_LIBRARY_FILE}" NAME)
+    file(REMOVE "${CMAKE_BINARY_DIR}/${_gst_lib_filename}")
+    file(CREATE_LINK "${GSTREAMER_LIBRARY_FILE}" "${CMAKE_BINARY_DIR}/${_gst_lib_filename}" SYMBOLIC)
+endif()
 
 add_library(gstreamer_ios_texture STATIC
     synthetic_video_source.cpp
@@ -130,13 +151,21 @@ target_include_directories(gstreamer_ios_texture PRIVATE
     "${CMAKE_BINARY_DIR}/gstreamer_headers"
 )
 
-# Standard Apple-framework linking: -F adds the search path, -framework links
-# against GStreamer.framework itself (works for both static and dynamic
-# framework binaries).
-target_link_options(gstreamer_ios_texture PUBLIC
-    "-F${CMAKE_BINARY_DIR}"
-    "-framework" "${GSTREAMER_FRAMEWORK_NAME}"
-)
+# Standard Apple linking: framework-style needs -F<search path> + -framework,
+# library-style needs -L<search path> + -l<name> (works for both since the
+# resolved lib/framework is symlinked into CMAKE_BINARY_DIR above).
+if(GSTREAMER_LINK_STYLE STREQUAL "FRAMEWORK")
+    target_link_options(gstreamer_ios_texture PUBLIC
+        "-F${CMAKE_BINARY_DIR}"
+        "-framework" "${GSTREAMER_FRAMEWORK_NAME}"
+    )
+else()
+    target_link_options(gstreamer_ios_texture PUBLIC
+        "-L${CMAKE_BINARY_DIR}"
+        "-l${GSTREAMER_LIBRARY_NAME}"
+    )
+endif()
+
 
 # NOTE: GStreamer's static iOS build typically also needs a handful of Apple
 # system frameworks/libs (AudioToolbox, AVFoundation, CoreMedia, CoreVideo,
@@ -152,6 +181,10 @@ target_link_options(gstreamer_ios_texture PUBLIC
 get_target_property(_gst_include_dirs gstreamer_ios_texture INCLUDE_DIRECTORIES)
 message(STATUS "KANAPKA gstreamer_ios_texture include directories: ${_gst_include_dirs}")
 
-message(STATUS "KANAPKA gstreamer_ios_texture framework: ${GSTREAMER_FRAMEWORK}")
-message(STATUS "KANAPKA gstreamer_ios_texture headers symlink: ${CMAKE_BINARY_DIR}/gstreamer_headers -> ${GSTREAMER_FRAMEWORK}/Headers")
-message(STATUS "KANAPKA gstreamer_ios_texture framework symlink: ${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework -> ${GSTREAMER_FRAMEWORK}")
+message(STATUS "KANAPKA gstreamer_ios_texture link style: ${GSTREAMER_LINK_STYLE}")
+message(STATUS "KANAPKA gstreamer_ios_texture headers symlink: ${CMAKE_BINARY_DIR}/gstreamer_headers -> ${GSTREAMER_HEADERS_DIR}")
+if(GSTREAMER_LINK_STYLE STREQUAL "FRAMEWORK")
+    message(STATUS "KANAPKA gstreamer_ios_texture framework symlink: ${CMAKE_BINARY_DIR}/${GSTREAMER_FRAMEWORK_NAME}.framework -> ${GSTREAMER_FRAMEWORK}")
+else()
+    message(STATUS "KANAPKA gstreamer_ios_texture library symlink: ${CMAKE_BINARY_DIR}/${_gst_lib_filename} -> ${GSTREAMER_LIBRARY_FILE}")
+endif()

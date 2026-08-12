@@ -390,10 +390,6 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build",
-				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/gstreamer_headers",
@@ -405,8 +401,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lgstreamer_ios_texture",
-					"-framework",
-					"GStreamer",
+					"-lGStreamer",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -588,10 +583,6 @@
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				// Static lib + xcframework produced by the "Build GStreamer CMake Library" script phase (see ios/Runner/CMakeLists.txt).
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build",
-				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/gstreamer_headers",
@@ -603,8 +594,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lgstreamer_ios_texture",
-					"-framework",
-					"GStreamer",
+					"-lGStreamer",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -628,10 +618,6 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build",
-				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(BUILT_PRODUCTS_DIR)/gstreamer_ios_texture_build/gstreamer_headers",
@@ -643,8 +629,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lgstreamer_ios_texture",
-					"-framework",
-					"GStreamer",
+					"-lGStreamer",
 				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
