@@ -2,6 +2,8 @@
 
 #include <gst/app/gstappsink.h>
 
+#include <os/log.h>
+
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -26,24 +28,24 @@ SyntheticVideoSource::SyntheticVideoSource(int width, int height,
       "video/x-raw,format=BGRA ! "
       "appsink name=sink emit-signals=true sync=true max-buffers=1 drop=true";
 
-  fprintf(stderr, "KANAPKA SyntheticVideoSource: launching pipeline: %s\n", pipeline_str.c_str());
+  os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: launching pipeline: %{public}s", pipeline_str.c_str());
 
   GError* error = nullptr;
   pipeline_ = gst_parse_launch(pipeline_str.c_str(), &error);
   if (error) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: GStreamer error: %s\n", error->message);
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: GStreamer error: %{public}s", error->message);
     g_error_free(error);
     return;
   }
   if (pipeline_ == nullptr) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: gst_parse_launch returned null pipeline (no error set)\n");
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: gst_parse_launch returned null pipeline (no error set)");
     return;
   }
-  fprintf(stderr, "KANAPKA SyntheticVideoSource: pipeline parsed successfully\n");
+  os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: pipeline parsed successfully");
 
   GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
   if (sink == nullptr) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: could not find appsink named 'sink' in pipeline\n");
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: could not find appsink named 'sink' in pipeline");
     return;
   }
   g_signal_connect(sink, "new-sample", G_CALLBACK(OnNewSample), this);
@@ -53,10 +55,10 @@ SyntheticVideoSource::SyntheticVideoSource(int width, int height,
   bus_thread_ = std::thread(&SyntheticVideoSource::BusLoop, this);
 
   GstStateChangeReturn state_ret = gst_element_set_state(pipeline_, GST_STATE_PLAYING);
-  fprintf(stderr, "KANAPKA SyntheticVideoSource: set_state(PLAYING) returned %s\n",
-          gst_element_state_change_return_get_name(state_ret));
+  os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: set_state(PLAYING) returned %{public}s",
+         gst_element_state_change_return_get_name(state_ret));
   if (state_ret == GST_STATE_CHANGE_FAILURE) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: couldn't set pipeline to playing state\n");
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: couldn't set pipeline to playing state");
   }
 }
 
@@ -91,7 +93,7 @@ GstFlowReturn SyntheticVideoSource::OnNewSample(GstElement* sink, gpointer user_
   auto* self = static_cast<SyntheticVideoSource*>(user_data);
   GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
   if (sample == nullptr) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: OnNewSample got null sample\n");
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: OnNewSample got null sample");
     return GST_FLOW_OK;
   }
 
@@ -100,12 +102,12 @@ GstFlowReturn SyntheticVideoSource::OnNewSample(GstElement* sink, gpointer user_
   if (buffer != nullptr && gst_buffer_map(buffer, &map, GST_MAP_READ)) {
     int count = ++self->frame_count_;
     if (count <= 5 || count % 30 == 0) {
-      fprintf(stderr, "KANAPKA SyntheticVideoSource: received frame #%d, %zu bytes\n", count, map.size);
+      os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: received frame #%d, %zu bytes", count, map.size);
     }
     self->CopyFrameToPixelBuffer(map.data, map.size);
     gst_buffer_unmap(buffer, &map);
   } else {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: OnNewSample - null buffer or map failed\n");
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: OnNewSample - null buffer or map failed");
   }
 
   gst_sample_unref(sample);
@@ -128,8 +130,8 @@ void SyntheticVideoSource::BusLoop() {
         GError* err = nullptr;
         gchar* debug = nullptr;
         gst_message_parse_error(msg, &err, &debug);
-        fprintf(stderr, "KANAPKA SyntheticVideoSource: [BUS ERROR] %s (debug: %s)\n",
-                err ? err->message : "unknown", debug ? debug : "none");
+        os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: [BUS ERROR] %{public}s (debug: %{public}s)",
+               err ? err->message : "unknown", debug ? debug : "none");
         g_clear_error(&err);
         g_free(debug);
         break;
@@ -138,22 +140,22 @@ void SyntheticVideoSource::BusLoop() {
         GError* err = nullptr;
         gchar* debug = nullptr;
         gst_message_parse_warning(msg, &err, &debug);
-        fprintf(stderr, "KANAPKA SyntheticVideoSource: [BUS WARNING] %s (debug: %s)\n",
-                err ? err->message : "unknown", debug ? debug : "none");
+        os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: [BUS WARNING] %{public}s (debug: %{public}s)",
+               err ? err->message : "unknown", debug ? debug : "none");
         g_clear_error(&err);
         g_free(debug);
         break;
       }
       case GST_MESSAGE_EOS:
-        fprintf(stderr, "KANAPKA SyntheticVideoSource: [BUS] End-of-stream\n");
+        os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: [BUS] End-of-stream");
         break;
       case GST_MESSAGE_STATE_CHANGED:
         if (GST_MESSAGE_SRC(msg) == GST_OBJECT(pipeline_)) {
           GstState old_state, new_state, pending_state;
           gst_message_parse_state_changed(msg, &old_state, &new_state, &pending_state);
-          fprintf(stderr, "KANAPKA SyntheticVideoSource: [BUS] pipeline state: %s -> %s (pending: %s)\n",
-                  gst_element_state_get_name(old_state), gst_element_state_get_name(new_state),
-                  gst_element_state_get_name(pending_state));
+          os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: [BUS] pipeline state: %{public}s -> %{public}s (pending: %{public}s)",
+                 gst_element_state_get_name(old_state), gst_element_state_get_name(new_state),
+                 gst_element_state_get_name(pending_state));
         }
         break;
       default:
@@ -170,7 +172,7 @@ void SyntheticVideoSource::CopyFrameToPixelBuffer(const uint8_t* src, size_t src
   CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, width_, height_,
                                          kCVPixelFormatType_32BGRA, nullptr, &pixel_buffer);
   if (status != kCVReturnSuccess || pixel_buffer == nullptr) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: CVPixelBufferCreate failed, status=%d\n", (int)status);
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: CVPixelBufferCreate failed, status=%d", (int)status);
     return;
   }
 
@@ -180,8 +182,8 @@ void SyntheticVideoSource::CopyFrameToPixelBuffer(const uint8_t* src, size_t src
   const size_t row_bytes = static_cast<size_t>(width_) * 4;
   const size_t expected_size = row_bytes * static_cast<size_t>(height_);
   if (frame_count_ <= 5 && src_size < expected_size) {
-    fprintf(stderr, "KANAPKA SyntheticVideoSource: frame buffer smaller than expected: got %zu bytes, expected %zu\n",
-            src_size, expected_size);
+    os_log(OS_LOG_DEFAULT, "KANAPKA SyntheticVideoSource: frame buffer smaller than expected: got %zu bytes, expected %zu",
+           src_size, expected_size);
   }
 
   for (int y = 0; y < height_; y++) {
