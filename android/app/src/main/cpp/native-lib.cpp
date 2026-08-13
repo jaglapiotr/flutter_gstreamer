@@ -78,4 +78,17 @@ Java_com_example_gstreamer_1demo_MainActivity_nativeDestroyVideoSource(
   LOGI("KANAPKA nativeDestroyVideoSource: stopped test pipeline");
 }
 
+// Updates the "osd0" textoverlay text on a running pipeline. Called from
+// MainActivity in response to the Flutter "setOsdText" method call.
+JNIEXPORT void JNICALL
+Java_com_example_gstreamer_1demo_MainActivity_nativeSetOsdText(
+    JNIEnv* env, jobject /* thiz */, jlong handle, jstring text) {
+  if (handle == 0) {
+    return;
+  }
+  const char* text_chars = env->GetStringUTFChars(text, nullptr);
+  reinterpret_cast<SyntheticVideoSource*>(handle)->SetOsdText(text_chars);
+  env->ReleaseStringUTFChars(text, text_chars);
+}
+
 }  // extern "C"

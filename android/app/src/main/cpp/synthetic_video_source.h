@@ -45,6 +45,9 @@ class SyntheticVideoSource {
         "! rtph264depay name=rtph264depay0 "
         "! video/x-h264,stream-format=(string)byte-stream,alignment=(string)nal "
         "! decodebin name=decodebin0 " 
+        "! textoverlay name=osd0 text=\"LIVE\" halignment=left valignment=top "
+        "xpad=20 ypad=20 font-desc=\"Sans Bold 22\" color=0xFFFFFF00 "
+        "shaded-background=true shading-value=160 "
         "! glimagesink name=sink sync=true";
 
     GError* error = nullptr;
@@ -56,10 +59,6 @@ class SyntheticVideoSource {
     }
     LOGI("KANAPKA pipeline created successfully %s",
          pipeline_str.c_str());
-
-    GstBus* bus = gst_element_get_bus(pipeline_);
-    gst_bus_set_sync_handler(bus, &SyntheticVideoSource::OnBusMessage, this, nullptr);
-    gst_object_unref(bus);
 
     GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
 
@@ -87,6 +86,35 @@ class SyntheticVideoSource {
       ANativeWindow_release(window_);
       window_ = nullptr;
     }
+  }
+
+  // Live property updates on the "osd0" textoverlay; safe to call while the
+  // pipeline is PLAYING, changes apply on the next rendered frame.
+  void SetOsdText(const std::string& text) {
+    GstElement* osd = gst_bin_get_by_name(GST_BIN(pipeline_), "osd0");
+    if (!osd) return;
+    g_object_set(osd, "text", text.c_str(), nullptr);
+    gst_object_unref(osd);
+  }
+
+  void SetOsdColor(guint32 argb) {
+    GstElement* osd = gst_bin_get_by_name(GST_BIN(pipeline_), "osd0");
+    if (!osd) return;
+    g_object_set(osd, "color", argb, nullptr);
+    gst_object_unref(osd);
+  }
+
+  void SetOsdPosition(const std::string& halignment,
+                       const std::string& valignment, int xpad, int ypad) {
+    GstElement* osd = gst_bin_get_by_name(GST_BIN(pipeline_), "osd0");
+    if (!osd) return;
+    // halignment/valignment are enum properties; gst_util_set_object_arg
+    // parses the string the same way gst_parse_launch does (g_object_set
+    // would misinterpret a raw const char* against an enum's va_arg slot).
+    gst_util_set_object_arg(G_OBJECT(osd), "halignment", halignment.c_str());
+    gst_util_set_object_arg(G_OBJECT(osd), "valignment", valignment.c_str());
+    g_object_set(osd, "xpad", xpad, "ypad", ypad, nullptr);
+    gst_object_unref(osd);
   }
 
  private:

@@ -30,6 +30,7 @@ class MainActivity: FlutterActivity() {
   // renders into the Surface backing a Flutter SurfaceTexture.
   private external fun nativeCreateVideoSource(surface: Surface, width: Int, height: Int): Long
   private external fun nativeDestroyVideoSource(handle: Long)
+  private external fun nativeSetOsdText(handle: Long, text: String)
 
   private var videoSourceHandle: Long = 0
   private var surfaceTextureEntry: TextureRegistry.SurfaceTextureEntry? = null
@@ -51,6 +52,13 @@ class MainActivity: FlutterActivity() {
       .setMethodCallHandler { call, result ->
         when (call.method) {
           "createTexture" -> result.success(createTexture(flutterEngine))
+          "setOsdText" -> {
+            val text = call.argument<String>("text") ?: ""
+            if (videoSourceHandle != 0L) {
+              nativeSetOsdText(videoSourceHandle, text)
+            }
+            result.success(null)
+          }
           else -> result.notImplemented()
         }
       }
