@@ -4,6 +4,7 @@
 #include <android/log.h>
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
+#include <gst/video/videooverlay.h>
 
 #include <algorithm>
 #include <cstring>
@@ -19,6 +20,7 @@
 // and each frame is copied into the ANativeWindow that backs the Flutter SurfaceTexture.
 class SyntheticVideoSource {
  public:
+
   SyntheticVideoSource(ANativeWindow* window, int width, int height)
       : window_(window), width_(width), height_(height) {
     ANativeWindow_acquire(window_);
@@ -29,14 +31,21 @@ class SyntheticVideoSource {
       gst_init(nullptr, nullptr);
     }
 
+    // std::string pipeline_str =
+    //     "rtspsrc name=rtspsrc0 location=rtsp://192.168.16.254:9001/stream latency=200 protocols=tcp "
+    //     "! rtph264depay name=rtph264depay0 "
+    //     "! video/x-h264,stream-format=(string)byte-stream,alignment=(string)nal "
+    //     "! decodebin name=decodebin0 " 
+    //     "! videoconvert name=videoconvert0 "
+    //     "! video/x-raw,format=RGBA " 
+    //     "! appsink name=sink emit-signals=true sync=true max-buffers=1 drop=true"
+
     std::string pipeline_str =
-        "rtspsrc location=rtsp://192.168.16.254:9001/stream latency=200 protocols=tcp "
-        "! rtph264depay "
+        "rtspsrc name=rtspsrc0 location=rtsp://192.168.16.254:9001/stream latency=200 protocols=tcp "
+        "! rtph264depay name=rtph264depay0 "
         "! video/x-h264,stream-format=(string)byte-stream,alignment=(string)nal "
-        "! decodebin "
-        "! videoconvert "
-        "! video/x-raw,format=RGBA "
-        "! appsink name=sink emit-signals=true sync=true max-buffers=1 drop=true";
+        "! decodebin name=decodebin0 " 
+        "! glimagesink name=sink sync=true";
 
     GError* error = nullptr;
     pipeline_ = gst_parse_launch(pipeline_str.c_str(), &error);
@@ -45,14 +54,19 @@ class SyntheticVideoSource {
       g_error_free(error);
       return;
     }
-    LOGI("KANAPKA pipeline created successfully: %s", pipeline_str.c_str());
+    LOGI("KANAPKA pipeline created successfully %s",
+         pipeline_str.c_str());
 
     GstBus* bus = gst_element_get_bus(pipeline_);
     gst_bus_set_sync_handler(bus, &SyntheticVideoSource::OnBusMessage, this, nullptr);
     gst_object_unref(bus);
 
     GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
-    g_signal_connect(sink, "new-sample", G_CALLBACK(OnNewSample), this);
+
+    gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sink),
+                                         reinterpret_cast<guintptr>(window_));
+    // g_signal_connect(sink, "new-sample", G_CALLBACK(OnNewSample), this);
+
     gst_object_unref(sink);
 
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) ==
@@ -76,45 +90,6 @@ class SyntheticVideoSource {
   }
 
  private:
-  static GstBusSyncReply OnBusMessage(GstBus* bus, GstMessage* message, gpointer user_data) {
-    auto* self = static_cast<SyntheticVideoSource*>(user_data);
-    switch (GST_MESSAGE_TYPE(message)) {
-      case GST_MESSAGE_ERROR: {
-        GError* err = nullptr;
-        gchar* debug = nullptr;
-        gst_message_parse_error(message, &err, &debug);
-        LOGE("KANAPKA pipeline error from %s: %s (%s)", GST_OBJECT_NAME(message->src),
-             err->message, debug ? debug : "no debug info");
-        g_clear_error(&err);
-        g_free(debug);
-        break;
-      }
-      case GST_MESSAGE_WARNING: {
-        GError* err = nullptr;
-        gchar* debug = nullptr;
-        gst_message_parse_warning(message, &err, &debug);
-        LOGI("KANAPKA pipeline warning from %s: %s", GST_OBJECT_NAME(message->src), err->message);
-        g_clear_error(&err);
-        g_free(debug);
-        break;
-      }
-      case GST_MESSAGE_EOS:
-        LOGI("KANAPKA pipeline reached end of stream");
-        break;
-      case GST_MESSAGE_STATE_CHANGED:
-        if (GST_MESSAGE_SRC(message) == GST_OBJECT(self->pipeline_)) {
-          GstState old_state, new_state, pending_state;
-          gst_message_parse_state_changed(message, &old_state, &new_state, &pending_state);
-          LOGI("KANAPKA pipeline state changed: %s -> %s",
-               gst_element_state_get_name(old_state), gst_element_state_get_name(new_state));
-        }
-        break;
-      default:
-        break;
-    }
-    return GST_BUS_PASS;
-  }
-
   static GstFlowReturn OnNewSample(GstElement* sink, gpointer user_data) {
     auto* self = static_cast<SyntheticVideoSource*>(user_data);
     GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
