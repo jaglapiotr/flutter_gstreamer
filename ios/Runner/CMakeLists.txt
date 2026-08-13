@@ -171,9 +171,3 @@ endif()
 # symbols pulled in by its statically-registered plugins. Add those to
 # OTHER_LDFLAGS in project.pbxproj (Runner target) as you hit undefined-symbol
 # errors for them - the exact set depends on your SDK build/version.
-
-# ---------------------------------------------------------------------------
-# Debug: print what actually ended up attached to the target, so a wrong
-# GSTREAMER_ROOT_IOS / xcframework layout is easy to spot in the build log.
-# ---------------------------------------------------------------------------
-get_target_property(_gst_include_dirs gstreamer_ios_texture INCLUDE_DIRECTORIES)

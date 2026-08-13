@@ -30,11 +30,11 @@ class SyntheticVideoSource {
     }
 
     std::string pipeline_str =
-        "rtspsrc name=rtspsrc0 location=rtsp://192.168.16.254:9001/stream latency=200 protocols=tcp "
-        "! rtph264depay name=rtph264depay0 "
+        "rtspsrc location=rtsp://192.168.16.254:9001/stream latency=200 protocols=tcp "
+        "! rtph264depay "
         "! video/x-h264,stream-format=(string)byte-stream,alignment=(string)nal "
-        "! decodebin name=decodebin0 "
-        "! videoconvert name=videoconvert0 "
+        "! decodebin "
+        "! videoconvert "
         "! video/x-raw,format=RGBA "
         "! appsink name=sink emit-signals=true sync=true max-buffers=1 drop=true";
 
