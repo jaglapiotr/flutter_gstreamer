@@ -30,20 +30,26 @@ class SyntheticVideoSource {
     }
 
     std::string pipeline_str =
-        "videotestsrc ! "
-        "video/x-raw,width=" + std::to_string(width_) +
-        ",height=" + std::to_string(height_) + ",framerate=30/1 ! "
-        "videoconvert ! "
-        "video/x-raw,format=RGBA ! "
-        "appsink name=sink emit-signals=true sync=true max-buffers=1 drop=true";
+        "rtspsrc name=rtspsrc0 location=rtsp://192.168.16.254:9001/stream latency=200 protocols=tcp "
+        "! rtph264depay name=rtph264depay0 "
+        "! video/x-h264,stream-format=(string)byte-stream,alignment=(string)nal "
+        "! decodebin name=decodebin0 "
+        "! videoconvert name=videoconvert0 "
+        "! video/x-raw,format=RGBA "
+        "! appsink name=sink emit-signals=true sync=true max-buffers=1 drop=true";
 
     GError* error = nullptr;
     pipeline_ = gst_parse_launch(pipeline_str.c_str(), &error);
     if (error) {
-      LOGE("GStreamer error: %s", error->message);
+      LOGE("KANAPKA pipeline parse failed: %s", error->message);
       g_error_free(error);
       return;
     }
+    LOGI("KANAPKA pipeline created successfully: %s", pipeline_str.c_str());
+
+    GstBus* bus = gst_element_get_bus(pipeline_);
+    gst_bus_set_sync_handler(bus, &SyntheticVideoSource::OnBusMessage, this, nullptr);
+    gst_object_unref(bus);
 
     GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
     g_signal_connect(sink, "new-sample", G_CALLBACK(OnNewSample), this);
@@ -51,7 +57,9 @@ class SyntheticVideoSource {
 
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) ==
         GST_STATE_CHANGE_FAILURE) {
-      LOGE("Couldn't set pipeline to playing state");
+      LOGE("KANAPKA couldn't set pipeline to playing state");
+    } else {
+      LOGI("KANAPKA pipeline state change to playing requested successfully");
     }
   }
 
@@ -68,6 +76,45 @@ class SyntheticVideoSource {
   }
 
  private:
+  static GstBusSyncReply OnBusMessage(GstBus* bus, GstMessage* message, gpointer user_data) {
+    auto* self = static_cast<SyntheticVideoSource*>(user_data);
+    switch (GST_MESSAGE_TYPE(message)) {
+      case GST_MESSAGE_ERROR: {
+        GError* err = nullptr;
+        gchar* debug = nullptr;
+        gst_message_parse_error(message, &err, &debug);
+        LOGE("KANAPKA pipeline error from %s: %s (%s)", GST_OBJECT_NAME(message->src),
+             err->message, debug ? debug : "no debug info");
+        g_clear_error(&err);
+        g_free(debug);
+        break;
+      }
+      case GST_MESSAGE_WARNING: {
+        GError* err = nullptr;
+        gchar* debug = nullptr;
+        gst_message_parse_warning(message, &err, &debug);
+        LOGI("KANAPKA pipeline warning from %s: %s", GST_OBJECT_NAME(message->src), err->message);
+        g_clear_error(&err);
+        g_free(debug);
+        break;
+      }
+      case GST_MESSAGE_EOS:
+        LOGI("KANAPKA pipeline reached end of stream");
+        break;
+      case GST_MESSAGE_STATE_CHANGED:
+        if (GST_MESSAGE_SRC(message) == GST_OBJECT(self->pipeline_)) {
+          GstState old_state, new_state, pending_state;
+          gst_message_parse_state_changed(message, &old_state, &new_state, &pending_state);
+          LOGI("KANAPKA pipeline state changed: %s -> %s",
+               gst_element_state_get_name(old_state), gst_element_state_get_name(new_state));
+        }
+        break;
+      default:
+        break;
+    }
+    return GST_BUS_PASS;
+  }
+
   static GstFlowReturn OnNewSample(GstElement* sink, gpointer user_data) {
     auto* self = static_cast<SyntheticVideoSource*>(user_data);
     GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
