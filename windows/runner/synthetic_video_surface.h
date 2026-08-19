@@ -29,10 +29,17 @@ public:
         width_ = 1280;
         height_ = 720;
 
+        // GPU path: glcolorconvert + glshader run on the GPU, only the final
+        // BGRA frame is downloaded to system memory for the appsink.
         std::string pipeline_str = 
             "videotestsrc pattern=ball ! "
             "video/x-raw,width=1280,height=720,framerate=30/1 ! "
-            "videoconvert ! "
+            "glupload ! "
+            "glcolorconvert ! "
+            "video/x-raw(memory:GLMemory),format=RGBA ! "
+            "glshader name=rect_shader ! "
+            "glcolorconvert ! "
+            "gldownload ! "
             "video/x-raw,format=BGRA ! "
             "appsink name=sink emit-signals=true sync=true";
 
@@ -42,6 +49,28 @@ public:
         if (error) {
             std::cerr << "!!! GStreamer Error: " << error->message << std::endl;
             g_error_free(error);
+        }
+
+        // Draws a solid red rectangle over the top-left 10% of the frame.
+        static const char* kRectFragmentShader = R"(
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+            varying vec2 v_texcoord;
+            uniform sampler2D tex;
+            void main () {
+                vec4 c = texture2D(tex, v_texcoord);
+                if (v_texcoord.x < 0.1 && v_texcoord.y < 0.1) {
+                    c = vec4(1.0, 0.0, 0.0, 1.0);
+                }
+                gl_FragColor = c;
+            }
+        )";
+
+        GstElement* shader = gst_bin_get_by_name(GST_BIN(pipeline_), "rect_shader");
+        if (shader) {
+            g_object_set(shader, "fragment", kRectFragmentShader, nullptr);
+            gst_object_unref(shader);
         }
 
         GstElement* sink = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
